@@ -1,6 +1,5 @@
 module Syntax.Parser 
   ( parseSExpr
-  , atom
   ) where
 
 import Data.Void (Void)
