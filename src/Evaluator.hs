@@ -67,13 +67,27 @@ evalFunction ctx = \case
                else error $ "Expected: " ++ show (length params) ++ " arguments, but instead got " ++ show (length args)
           _ -> error "not is a function"
 
-sum' :: Value -> Value -> Value
-sum' (VInt x) (VInt y) = VInt (x + y)
-sum' _ _ = error "is not an integer"
+plus :: Value -> Value -> Value
+plus (VInt x) (VInt y) = VInt (x + y)
+plus _ _ = error "is not an integer"
+
+minus :: Value -> Value -> Value
+minus (VInt x) (VInt y) = VInt (x - y)
+minus _ _ = error "is not an integer"
+
+times :: Value -> Value -> Value
+times (VInt x) (VInt y) = VInt (x * y)
+times _ _ = error "is not an integer"
 
 apply :: Context -> [SExpr] -> Value
 apply ctx = \case
   (SIdentifier "+" : rest) ->
     let (_, vs) = evalList ctx rest
-     in foldl sum' (VInt 0) vs
+     in foldl plus (VInt 0) vs
+  (SIdentifier "-" : rest) ->
+    let (_, vs) = evalList ctx rest
+     in foldl minus (VInt 0) vs
+  (SIdentifier "*" : rest) ->
+    let (_, vs) = evalList ctx rest
+     in foldr times (VInt 1) vs
   other -> last $ snd $ evalFunction ctx other
