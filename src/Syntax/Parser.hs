@@ -3,7 +3,7 @@ module Syntax.Parser
   ) where
 
 import Data.Void (Void)
-import Data.Text (Text, pack)
+import Data.Text (Text, pack, singleton)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -30,10 +30,14 @@ bool :: Parser Bool
 bool = label "bool" $ lexeme $ 
   False <$ string "false" <|> True <$ string "true"
 
+operator :: Parser Text
+operator = label "operator" $ lexeme $ 
+  singleton <$> oneOf ['+', '-', '*', '/']
+
 identifier :: Parser Text
 identifier = label "identifier" $ lexeme $ do
-  first <- letterChar <|> char '_' <|> char '+'
-  rest <- many $ alphaNumChar <|> char '_' <|> char '+'
+  first <- letterChar <|> char '_' 
+  rest <- many $ alphaNumChar <|> char '_'
   pure $ pack $ first : rest
 
 sexpr :: Parser [SExpr]
@@ -44,7 +48,8 @@ atom :: Parser SExpr
 atom = choice
   [ SBool <$> bool
   , SInteger <$> integer
-  , SIdentifier <$> identifier 
+  , SIdentifier <$> identifier
+  , SIdentifier <$> operator
   , SSExpr <$> sexpr
   ]
 
