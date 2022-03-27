@@ -9,14 +9,13 @@ import Syntax.Parser
 import Evaluator
 import System.Console.Haskeline
 
-f :: FilePath -> IO ()
-f filename = do
+readFileAndEval :: FilePath -> IO ()
+readFileAndEval filename = do
   output <- TIO.readFile filename
-
-  case parseSExpr output of
-    Left error -> putStrLn error
-    Right result -> do
-      print $ last $ snd $ evalList [] result
+  
+  either putStrLn
+         (print . last . snd . evalList [])
+         (parseSExpr output)
 
 repl :: IO ()
 repl = runInputT defaultSettings (loop [])
@@ -38,7 +37,6 @@ haildo :: IO ()
 haildo = do
   args <- getArgs
 
-  case args of
-    [] -> repl
-    [file] -> f file 
-    _ -> putStrLn "--help"
+  if args /= []
+     then readFileAndEval (head args)
+     else repl
