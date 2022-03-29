@@ -16,7 +16,7 @@ type Parser = Parsec Void Text
 skipSpace :: Parser ()
 skipSpace = L.space
   space1
-  empty
+  (L.skipLineComment ";")
   empty
 
 lexeme :: Parser a -> Parser a
