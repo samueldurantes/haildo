@@ -9,6 +9,7 @@ import System.Environment (getArgs)
 import qualified Data.Text.IO as TIO
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
+import Data.Foldable (traverse_)
 
 haildo :: IO ()
 haildo = do
@@ -18,5 +19,5 @@ haildo = do
   case parseSExpr input of
     Left error -> putStrLn error
     Right output -> do
-      _ <- State.evalStateT (traverse eval output) (Context Map.empty [])
+      _ <- State.evalStateT (traverse_ eval output) (Context Map.empty [])
       pure ()

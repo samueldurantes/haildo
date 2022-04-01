@@ -1,4 +1,4 @@
-module Evaluator 
+module Evaluator
   ( eval
   , Context (..)
   ) where
@@ -8,14 +8,14 @@ import Syntax.Tree
 import Data.Map (Map)
 import Control.Monad.State
 import Data.Foldable (traverse_)
-import Debug.Trace (traceShowId)
 
 import qualified Data.Map as Map
 import qualified Control.Monad.State as State
+import Debug.Trace (traceM, traceShowM)
 
-data Function = Function 
+data Function = Function
   { args :: [Text]
-  , body :: [SExpr] 
+  , body :: [SExpr]
   } deriving (Show)
 
 data Value
@@ -23,12 +23,18 @@ data Value
   | VBool Bool
   | VFunction Function
   | VNil
-  deriving (Show)
 
 data Context = Context
   { globalContext :: Map Text Value
   , stackContext :: [Map Text Value]
   }
+
+instance Show Value where
+  show = \case
+    VInteger n -> show n
+    VBool b -> show b
+    VFunction func -> "[Function]"
+    VNil -> "nil"
 
 findVariable :: (MonadState Context m) => Text -> m Value
 findVariable varName = do
@@ -48,9 +54,9 @@ addVariable key value = State.modify $ \ctx ->
 
 addFunction :: (MonadState Context m) => Text -> [Text] -> [SExpr] -> m ()
 addFunction name args body = State.modify $ \ctx ->
-  ctx { globalContext = Map.insert name (traceShowId value) (globalContext ctx)}
+  ctx { globalContext = Map.insert name value (globalContext ctx)}
     where
-      value = VFunction $ Function args body 
+      value = VFunction $ Function args body
 
 pushStack :: (MonadState Context m) => m ()
 pushStack = State.modify $ \ctx ->
@@ -65,7 +71,7 @@ f [] = []
 f (SIdentifier x : xs) = x : f xs
 f _ = error "Expected a SIdentifier"
 
-eval :: (MonadState Context m) => SExpr -> m Value
+eval :: (MonadState Context m, MonadIO m) => SExpr -> m Value
 eval = \case
   SInteger i -> pure $ VInteger i
   SBool b -> pure $ VBool b
@@ -77,13 +83,30 @@ isInt = \case
   VInteger r -> r
   _ -> error "Expected a integer"
 
-apply :: (MonadState Context m) => [SExpr] -> m Value
+apply :: (MonadState Context m, MonadIO m) => [SExpr] -> m Value
 apply = \case
   (SIdentifier "+" : rest) -> do
     values <- map isInt <$> traverse eval rest
     pure (VInteger $ sum values)
+  (SIdentifier "-" : rest) -> do
+    values <- map isInt <$> traverse eval rest
+    pure (VInteger $ foldl1 (-) values)
+  (SIdentifier "print" : rest) -> do
+    res <- traverse eval rest
+    liftIO $ putStrLn $ unwords $ map show res
+    pure VNil
   [SIdentifier "let", SIdentifier x, y] ->
     eval y >>= addVariable x >> pure VNil
+  [SIdentifier "<", a, b] -> do
+    res <- isInt <$> eval a
+    res2 <- isInt <$> eval b
+    pure (VBool (res < res2))
+  [SIdentifier "if", cond, if', else'] -> do
+    res <- eval cond
+    case res of
+      VBool True  -> eval if'
+      VBool False -> eval else'
+      _ -> error "Lol"
   (SIdentifier "function" : SIdentifier name : SSExpr params : body) ->
     addFunction name (f params) body >> pure VNil
   (fn : args) -> do
@@ -93,6 +116,7 @@ apply = \case
       VFunction (Function params body) -> do
         pushStack
         traverse_ (uncurry addVariable) (zip params argsV)
+        traceShowM (zip params argsV)
         res <- traverse eval body
         popStack
         pure $ last res
