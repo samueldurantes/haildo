@@ -150,8 +150,8 @@ builtin "assert" [SIdentifier name, a, b] = do
   resA <- eval a 
   resB <- eval b
   if resA == resB
-    then liftIO $ putStrLn $ concat ["\n\x1b[1m\x1b[32m  ⊙ ", show name, " succeded!\x1b[0m\n"]
-    else liftIO $ putStrLn $ concat ["\n\x1b[1m\x1b[31m  ⊙ ", show name, " failed!\n\x1b[0m", replicate 7 ' ', "Expected: ", show resB,"\n", replicate 7 ' ', "Got: ", show resA, "\n"]
+    then liftIO $ putStrLn $ concat ["\n\x1b[1m\x1b[32m  ⊙ ", show name, " succeded!\x1b[0m"]
+    else liftIO $ putStrLn $ concat ["\n\x1b[1m\x1b[31m  ⊙ ", show name, " failed!\n\x1b[0m", replicate 7 ' ', "Expected: ", show resB,"\n", replicate 7 ' ', "Got: ", show resA]
   pure VNil
 
 builtin other args = do
