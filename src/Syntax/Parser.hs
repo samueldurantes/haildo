@@ -1,4 +1,4 @@
-module Syntax.Parser 
+module Syntax.Parser
   ( parseSExpr
   ) where
 
@@ -26,19 +26,16 @@ integer :: Parser Integer
 integer = label "integer" $ lexeme $
   read <$> some numberChar
 
-bool :: Parser Bool
-bool = label "bool" $ lexeme $ 
-  False <$ string "false" <|> True <$ string "true"
+identify :: Text -> SExpr
+identify = \case
+  "true" -> SBool True
+  "false" -> SBool False
+  other -> SIdentifier  other
 
-operator :: Parser Text
-operator = label "operator" $ lexeme $ 
-  singleton <$> oneOf ['+', '-', '*', '/']
-
-identifier :: Parser Text
-identifier = label "identifier" $ lexeme $ do
-  first <- letterChar <|> char '_' 
-  rest <- many $ alphaNumChar <|> char '_'
-  pure $ pack $ first : rest
+identifier :: Parser SExpr
+identifier = label "identifier" $ do
+  res <- lexeme $ some (noneOf ("\n\r ();" :: String))
+  pure $ identify (pack res)
 
 sexpr :: Parser [SExpr]
 sexpr = label "s-expression" $ lexeme $
@@ -46,10 +43,8 @@ sexpr = label "s-expression" $ lexeme $
 
 atom :: Parser SExpr
 atom = choice
-  [ SBool <$> bool
-  , SInteger <$> integer
-  , SIdentifier <$> identifier
-  , SIdentifier <$> operator
+  [ SInteger <$> integer
+  , identifier
   , SSExpr <$> sexpr
   ]
 
