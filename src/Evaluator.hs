@@ -1,12 +1,17 @@
 module Evaluator 
   ( eval
-  , evalList
-  , Value (..)
   , Context (..)
-   ) where
+  ) where
 
 import Data.Text (Text)
 import Syntax.Tree
+import Data.Map (Map)
+import Control.Monad.State
+import Data.Foldable (traverse_)
+import Debug.Trace (traceShowId)
+
+import qualified Data.Map as Map
+import qualified Control.Monad.State as State
 
 data Function = Function 
   { args :: [Text]
@@ -14,80 +19,82 @@ data Function = Function
   } deriving (Show)
 
 data Value
-  = VInt Integer
+  = VInteger Integer
   | VBool Bool
   | VFunction Function
   | VNil
   deriving (Show)
 
-type Context = [(Text, Value)]
+data Context = Context
+  { globalContext :: Map Text Value
+  , stackContext :: [Map Text Value]
+  }
 
-findVar :: Text -> Context -> Value 
-findVar x y =
-  case lookup x y of
-    Nothing -> error "variable not found"
-    Just v -> v
+findVariable :: (MonadState Context m) => Text -> m Value
+findVariable varName = do
+  ctx <- State.get
+  if null $ stackContext ctx
+    then searchGlobal ctx
+    else maybe (searchGlobal ctx) pure (Map.lookup varName (head $ stackContext ctx))
+  where
+    cannotFind = error $ "Variable '" ++ show varName ++ "' not found"
+    searchGlobal ctx = maybe cannotFind pure (Map.lookup varName (globalContext ctx))
+
+addVariable :: (MonadState Context m) => Text -> Value -> m ()
+addVariable key value = State.modify $ \ctx ->
+  if null (stackContext ctx)
+     then ctx { globalContext = Map.insert key value (globalContext ctx) }
+     else ctx { stackContext = Map.insert key value (head (stackContext ctx)) : tail (stackContext ctx)}
+
+addFunction :: (MonadState Context m) => Text -> [Text] -> [SExpr] -> m ()
+addFunction name args body = State.modify $ \ctx ->
+  ctx { globalContext = Map.insert name (traceShowId value) (globalContext ctx)}
+    where
+      value = VFunction $ Function args body 
+
+pushStack :: (MonadState Context m) => m ()
+pushStack = State.modify $ \ctx ->
+  ctx { stackContext = Map.empty : stackContext ctx }
+
+popStack :: (MonadState Context m) => m ()
+popStack = State.modify $ \ctx ->
+  ctx { stackContext = tail (stackContext ctx) }
 
 f :: [SExpr] -> [Text]
 f [] = []
-f (SIdentifier x : xs) = x : f xs 
-f _ = error "Expected Identifier"
+f (SIdentifier x : xs) = x : f xs
+f _ = error "Expected a SIdentifier"
 
-eval :: Context -> SExpr -> (Context, Value)
-eval ctx = \case
-  SInteger n -> (ctx, VInt n)
-  SBool b -> (ctx, VBool b)
-  SIdentifier i -> (ctx, findVar i ctx)
-  SSExpr [SIdentifier "let", SIdentifier x, y] ->
-    let (ctx', v) = eval ctx y
-     in ((x, v) : ctx', VNil)
-  SSExpr (SIdentifier "function" : SIdentifier name : SSExpr args : body) -> 
-    ((name, VFunction (Function (f args) body)) : ctx, VNil)
-  SSExpr xs -> (ctx, apply ctx xs)
+eval :: (MonadState Context m) => SExpr -> m Value
+eval = \case
+  SInteger i -> pure $ VInteger i
+  SBool b -> pure $ VBool b
+  SIdentifier i -> findVariable i
+  SSExpr xs -> apply xs
 
-evalList :: Context -> [SExpr] -> (Context, [Value])
-evalList ctx = \case
-  [] -> (ctx, [])
-  (x : xs) ->
-    let (ctx', v) = eval ctx x
-        (ctx'', v') = evalList ctx' xs
-     in (ctx'', v : v')
+isInt :: Value -> Integer
+isInt = \case
+  VInteger r -> r
+  _ -> error "Expected a integer"
 
-evalFunction :: Context -> [SExpr] -> (Context, [Value])
-evalFunction ctx = \case
-  [] -> (ctx, [])
-  (x : args) ->
-    let (ctx', v) = eval ctx x
-     in case v of
-          VFunction (Function params body) ->
-            if length params == length args
-               then let (ctx'', v') = evalList ctx' args
-                        function_ctx = zip params v' ++ ctx''
-                     in evalList function_ctx body
-               else error $ "Expected: " ++ show (length params) ++ " arguments, but instead got " ++ show (length args)
-          _ -> error "not is a function"
-
-plus :: Value -> Value -> Value
-plus (VInt x) (VInt y) = VInt (x + y)
-plus _ _ = error "is not an integer"
-
-minus :: Value -> Value -> Value
-minus (VInt x) (VInt y) = VInt (x - y)
-minus _ _ = error "is not an integer"
-
-times :: Value -> Value -> Value
-times (VInt x) (VInt y) = VInt (x * y)
-times _ _ = error "is not an integer"
-
-apply :: Context -> [SExpr] -> Value
-apply ctx = \case
-  (SIdentifier "+" : rest) ->
-    let (_, vs) = evalList ctx rest
-     in foldl plus (VInt 0) vs
-  (SIdentifier "-" : rest) ->
-    let (_, vs) = evalList ctx rest
-     in foldl minus (VInt 0) vs
-  (SIdentifier "*" : rest) ->
-    let (_, vs) = evalList ctx rest
-     in foldr times (VInt 1) vs
-  other -> last $ snd $ evalFunction ctx other
+apply :: (MonadState Context m) => [SExpr] -> m Value
+apply = \case
+  (SIdentifier "+" : rest) -> do
+    values <- map isInt <$> traverse eval rest
+    pure (VInteger $ sum values)
+  [SIdentifier "let", SIdentifier x, y] ->
+    eval y >>= addVariable x >> pure VNil
+  (SIdentifier "function" : SIdentifier name : SSExpr params : body) ->
+    addFunction name (f params) body >> pure VNil
+  (fn : args) -> do
+    function <- eval fn
+    argsV <- traverse eval args
+    case function of
+      VFunction (Function params body) -> do
+        pushStack
+        traverse_ (uncurry addVariable) (zip params argsV)
+        res <- traverse eval body
+        popStack
+        pure $ last res
+      _ -> error "Not a function"
+  _ -> error "Not implemented yet"

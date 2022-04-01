@@ -23,10 +23,13 @@ dependencies:
 - text
 - megaparsec
 - haskeline
+- mtl
+- containers
 
 default-extensions:
   - OverloadedStrings 
   - LambdaCase
+  - FlexibleContexts
 
 library:
   source-dirs: src
