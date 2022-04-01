@@ -4,7 +4,10 @@ Haildo is a toy programming language
 
 ## Goals 
 
-- [ ] Interpret something 
+- [x] Interpret something
+- [ ] Good error messages
+- [ ] Modules system
+- [ ] Compile to bytecode
 
 ## Example
 
