@@ -3,4 +3,5 @@
         x
         (+ (fib (- x 1)) (fib (- x 2)))))
 
-(print (fib 10))
+(assert fib (fib 10) 3)
+(assert fib (fib 10) 55)

@@ -25,7 +25,10 @@ data Value
   | VBool Bool
   | VFunction Function
   | VNil
+  deriving Eq 
 
+instance Eq Function where 
+  (==) _ _ = False
 
 instance Show Value where
   show = \case
@@ -141,6 +144,14 @@ builtin "if" [cond, if', else'] = do
 
 builtin "fun" (SIdentifier name : SSExpr params : body) = do
   addFunction name (filterIdentifier params) body
+  pure VNil
+
+builtin "assert" [SIdentifier name, a, b] = do
+  resA <- eval a 
+  resB <- eval b
+  if resA == resB
+    then liftIO $ putStrLn $ concat ["\n\x1b[1m\x1b[32m  ⊙ ", show name, " succeded!\x1b[0m\n"]
+    else liftIO $ putStrLn $ concat ["\n\x1b[1m\x1b[31m  ⊙ ", show name, " failed!\n\x1b[0m", replicate 7 ' ', "Expected: ", show resB,"\n", replicate 7 ' ', "Got: ", show resA, "\n"]
   pure VNil
 
 builtin other args = do
