@@ -20,7 +20,11 @@ Map a list:
 ```lisp
 (import "./std")
 
-(let a (map (lambda (x) (* x 2)) [1,2,3]))
+(let a (list 1 2 3))
 
-(print a) ;; returns [1, 4, 6]
+(let b (map (lambda (x)
+  (* x 2)
+  a)))
+
+(print b)
 ```
