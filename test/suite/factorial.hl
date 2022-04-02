@@ -1,0 +1,6 @@
+(fun factorial (x)
+    (if (< x 2)
+        1
+        (* x (factorial (- x 1)))))
+
+(print (factorial 10))
