@@ -24,6 +24,7 @@ data Context = Context
 
 data Value
   = VInteger Integer
+  | VString String
   | VBool Bool
   | VFunction Function
   | VNil
@@ -35,6 +36,7 @@ instance Eq Function where
 instance Show Value where
   show = \case
     VInteger n  -> show n
+    VString s   -> s
     VBool b     -> show b
     VFunction _ -> "[Function]"
     VNil        -> "nil"
@@ -77,6 +79,7 @@ filterIdentifier _ = error "Expected a SIdentifier"
 eval :: (MonadState Context m, MonadIO m) => SExpr -> m Value
 eval = \case
   SInteger i -> pure $ VInteger i
+  SString s -> pure $ VString s
   SBool b -> pure $ VBool b
   SIdentifier i -> findVariable i
   SSExpr xs -> apply xs

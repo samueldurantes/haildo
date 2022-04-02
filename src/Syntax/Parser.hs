@@ -26,6 +26,10 @@ integer :: Parser Integer
 integer = label "integer" $ lexeme $
   read <$> some numberChar
 
+str :: Parser String
+str = label "string" $ lexeme $
+  char '"' *> manyTill L.charLiteral (char '"')
+
 identify :: Text -> SExpr
 identify = \case
   "true" -> SBool True
@@ -44,6 +48,7 @@ sexpr = label "s-expression" $ lexeme $
 atom :: Parser SExpr
 atom = choice
   [ SInteger <$> integer
+  , SString <$> str
   , identifier
   , SSExpr <$> sexpr
   ]
