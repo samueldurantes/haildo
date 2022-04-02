@@ -5,11 +5,11 @@ module Haildo
 import Evaluator 
 import Syntax.Parser (parseSExpr)
 import System.Environment (getArgs)
+import Data.Foldable (traverse_)
 
 import qualified Data.Text.IO as TIO
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
-import Data.Foldable (traverse_)
 
 haildo :: IO ()
 haildo = do
