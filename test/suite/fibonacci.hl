@@ -1,0 +1,7 @@
+(fun fib (x)
+    (if (< x 2)
+        x
+        (+ (fib (- x 1)) (fib (- x 2)))))
+
+(assert fib (fib 10) 3)
+(assert fib (fib 10) 55)

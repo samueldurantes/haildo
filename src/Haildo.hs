@@ -5,6 +5,7 @@ module Haildo
 import Evaluator 
 import Syntax.Parser (parseSExpr)
 import System.Environment (getArgs)
+import Data.Foldable (traverse_)
 
 import qualified Data.Text.IO as TIO
 import qualified Control.Monad.State as State
@@ -18,5 +19,5 @@ haildo = do
   case parseSExpr input of
     Left error -> putStrLn error
     Right output -> do
-      _ <- State.evalStateT (traverse eval output) (Context Map.empty [])
+      _ <- State.evalStateT (traverse_ eval output) (Context Map.empty [])
       pure ()

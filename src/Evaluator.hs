@@ -3,32 +3,41 @@ module Evaluator
   , Context (..)
   ) where
 
-import Data.Text (Text)
-import Syntax.Tree
-import Data.Map (Map)
 import Control.Monad.State
 import Data.Foldable (traverse_)
-import Debug.Trace (traceShowId)
+import Data.Map (Map)
+import Data.Text (Text)
+import Syntax.Tree (SExpr(..))
 
-import qualified Data.Map as Map
 import qualified Control.Monad.State as State
+import qualified Data.Map as Map
 
-data Function = Function 
-  { args :: [Text]
-  , body :: [SExpr] 
+data Function = Function
+  { args :: [Text] 
+  , body :: [SExpr]
   } deriving (Show)
+
+data Context = Context
+  { globalContext :: Map Text Value
+  , stackContext :: [Map Text Value]
+  }
 
 data Value
   = VInteger Integer
   | VBool Bool
   | VFunction Function
   | VNil
-  deriving (Show)
+  deriving (Eq)
 
-data Context = Context
-  { globalContext :: Map Text Value
-  , stackContext :: [Map Text Value]
-  }
+instance Eq Function where 
+  (==) _ _ = False
+
+instance Show Value where
+  show = \case
+    VInteger n  -> show n
+    VBool b     -> show b
+    VFunction _ -> "[Function]"
+    VNil        -> "nil"
 
 findVariable :: (MonadState Context m) => Text -> m Value
 findVariable varName = do
@@ -43,14 +52,14 @@ findVariable varName = do
 addVariable :: (MonadState Context m) => Text -> Value -> m ()
 addVariable key value = State.modify $ \ctx ->
   if null (stackContext ctx)
-     then ctx { globalContext = Map.insert key value (globalContext ctx) }
-     else ctx { stackContext = Map.insert key value (head (stackContext ctx)) : tail (stackContext ctx)}
+    then ctx { globalContext = Map.insert key value (globalContext ctx) }
+    else ctx { stackContext = Map.insert key value (head (stackContext ctx)) : tail (stackContext ctx) }
 
 addFunction :: (MonadState Context m) => Text -> [Text] -> [SExpr] -> m ()
 addFunction name args body = State.modify $ \ctx ->
-  ctx { globalContext = Map.insert name (traceShowId value) (globalContext ctx)}
-    where
-      value = VFunction $ Function args body 
+  ctx { globalContext = Map.insert name value (globalContext ctx) }
+  where
+    value = VFunction $ Function args body
 
 pushStack :: (MonadState Context m) => m ()
 pushStack = State.modify $ \ctx ->
@@ -60,12 +69,12 @@ popStack :: (MonadState Context m) => m ()
 popStack = State.modify $ \ctx ->
   ctx { stackContext = tail (stackContext ctx) }
 
-f :: [SExpr] -> [Text]
-f [] = []
-f (SIdentifier x : xs) = x : f xs
-f _ = error "Expected a SIdentifier"
+filterIdentifier :: [SExpr] -> [Text]
+filterIdentifier [] = []
+filterIdentifier (SIdentifier x : xs) = x : filterIdentifier xs
+filterIdentifier _ = error "Expected a SIdentifier"
 
-eval :: (MonadState Context m) => SExpr -> m Value
+eval :: (MonadState Context m, MonadIO m) => SExpr -> m Value
 eval = \case
   SInteger i -> pure $ VInteger i
   SBool b -> pure $ VBool b
@@ -77,24 +86,80 @@ isInt = \case
   VInteger r -> r
   _ -> error "Expected a integer"
 
-apply :: (MonadState Context m) => [SExpr] -> m Value
+applyFun :: (MonadState Context m, MonadIO m) => Value -> [SExpr] -> m Value
+applyFun fun args = do
+  argsV <- traverse eval args
+  case fun of
+    VFunction (Function params body) -> do
+      pushStack
+      traverse_ (uncurry addVariable) (zip params argsV)
+      res <- traverse eval body
+      popStack
+      pure $ last res
+    _ -> error "Not a function"
+
+applyOp :: (MonadState Context m, MonadIO m) => SExpr -> SExpr -> (Integer -> Integer  -> Value) -> m Value
+applyOp a b fn = do 
+  res <- isInt <$> eval a
+  res2 <- isInt <$> eval b
+  pure (fn res res2)
+
+(.:) :: (c -> d) -> (a -> b -> c) -> (a -> b -> d)
+(.:) = (.) . (.)
+
+builtin :: (MonadState Context m, MonadIO m) => Text -> [SExpr] -> m Value
+
+builtin "+" exprs = do
+  values <- traverse (fmap isInt . eval) exprs
+  pure $ VInteger $ sum values
+
+builtin "-" exprs = do
+  values <- traverse (fmap isInt . eval) exprs
+  pure $ VInteger $ foldl1 (-) values
+
+builtin "*" exprs = do
+  values <- traverse (fmap isInt . eval) exprs
+  pure $ VInteger $ product values
+
+builtin "<" [a, b] = applyOp a b (VBool .: (<))
+builtin ">" [a, b] = applyOp a b (VBool .: (>))
+
+builtin "print" exprs = do
+  res <- traverse eval exprs
+  liftIO $ putStrLn $ unwords $ map show res
+  pure VNil
+
+builtin "let" [SIdentifier x, y] = do
+  addVariable x =<< eval y
+  pure VNil
+
+builtin "if" [cond, if', else'] = do
+  res <- eval cond
+  case res of
+    VBool True -> eval if'
+    VBool False -> eval else'
+    _ -> error "Lol"
+
+builtin "fun" (SIdentifier name : SSExpr params : body) = do
+  addFunction name (filterIdentifier params) body
+  pure VNil
+
+builtin "assert" [SIdentifier name, a, b] = do
+  resA <- eval a 
+  resB <- eval b
+  if resA == resB
+    then liftIO $ putStrLn $ concat ["\n\x1b[1m\x1b[32m  ⊙ ", show name, " succeded!\x1b[0m"]
+    else liftIO $ putStrLn $ concat ["\n\x1b[1m\x1b[31m  ⊙ ", show name, " failed!\n\x1b[0m", replicate 7 ' ', "Expected: ", show resB,"\n", replicate 7 ' ', "Got: ", show resA]
+  pure VNil
+
+builtin other args = do
+  function <- findVariable other
+  applyFun function args
+
+apply :: (MonadState Context m, MonadIO m) => [SExpr] -> m Value
 apply = \case
-  (SIdentifier "+" : rest) -> do
-    values <- map isInt <$> traverse eval rest
-    pure (VInteger $ sum values)
-  [SIdentifier "let", SIdentifier x, y] ->
-    eval y >>= addVariable x >> pure VNil
-  (SIdentifier "function" : SIdentifier name : SSExpr params : body) ->
-    addFunction name (f params) body >> pure VNil
+  (SIdentifier name : rest) -> builtin name rest
   (fn : args) -> do
     function <- eval fn
-    argsV <- traverse eval args
-    case function of
-      VFunction (Function params body) -> do
-        pushStack
-        traverse_ (uncurry addVariable) (zip params argsV)
-        res <- traverse eval body
-        popStack
-        pure $ last res
-      _ -> error "Not a function"
-  _ -> error "Not implemented yet"
+    applyFun function args
+  [] -> error "Impossible!"
