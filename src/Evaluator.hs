@@ -140,7 +140,7 @@ builtin "if" [cond, if', else'] = do
     VBool False -> eval else'
     _ -> error "Lol"
 
-builtin "fun" (SIdentifier name : SSExpr params : body) = do
+builtin "function" (SIdentifier name : SSExpr params : body) = do
   addFunction name (filterIdentifier params) body
   pure VNil
 
