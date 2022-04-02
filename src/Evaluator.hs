@@ -1,23 +1,25 @@
-module Evaluator (eval,  Context (..)) where
+module Evaluator 
+  ( eval
+  , Context (..)
+  ) where
 
 import Control.Monad.State
 import Data.Foldable (traverse_)
 import Data.Map (Map)
 import Data.Text (Text)
-import Syntax.Tree ( SExpr(..) )
+import Syntax.Tree (SExpr(..))
 
 import qualified Control.Monad.State as State
 import qualified Data.Map as Map
 
 data Function = Function
-  { args :: [Text],
-    body :: [SExpr]
-  }
-  deriving (Show)
+  { args :: [Text] 
+  , body :: [SExpr]
+  } deriving (Show)
 
 data Context = Context
-  { globalContext :: Map Text Value,
-    stackContext :: [Map Text Value]
+  { globalContext :: Map Text Value
+  , stackContext :: [Map Text Value]
   }
 
 data Value
@@ -25,7 +27,7 @@ data Value
   | VBool Bool
   | VFunction Function
   | VNil
-  deriving Eq 
+  deriving (Eq)
 
 instance Eq Function where 
   (==) _ _ = False
@@ -50,22 +52,22 @@ findVariable varName = do
 addVariable :: (MonadState Context m) => Text -> Value -> m ()
 addVariable key value = State.modify $ \ctx ->
   if null (stackContext ctx)
-    then ctx {globalContext = Map.insert key value (globalContext ctx)}
-    else ctx {stackContext = Map.insert key value (head (stackContext ctx)) : tail (stackContext ctx)}
+    then ctx { globalContext = Map.insert key value (globalContext ctx) }
+    else ctx { stackContext = Map.insert key value (head (stackContext ctx)) : tail (stackContext ctx) }
 
 addFunction :: (MonadState Context m) => Text -> [Text] -> [SExpr] -> m ()
 addFunction name args body = State.modify $ \ctx ->
-  ctx {globalContext = Map.insert name value (globalContext ctx)}
+  ctx { globalContext = Map.insert name value (globalContext ctx) }
   where
     value = VFunction $ Function args body
 
 pushStack :: (MonadState Context m) => m ()
 pushStack = State.modify $ \ctx ->
-  ctx {stackContext = Map.empty : stackContext ctx}
+  ctx { stackContext = Map.empty : stackContext ctx }
 
 popStack :: (MonadState Context m) => m ()
 popStack = State.modify $ \ctx ->
-  ctx {stackContext = tail (stackContext ctx)}
+  ctx { stackContext = tail (stackContext ctx) }
 
 filterIdentifier :: [SExpr] -> [Text]
 filterIdentifier [] = []
@@ -84,8 +86,6 @@ isInt = \case
   VInteger r -> r
   _ -> error "Expected a integer"
 
--- 
-
 applyFun :: (MonadState Context m, MonadIO m) => Value -> [SExpr] -> m Value
 applyFun fun args = do
   argsV <- traverse eval args
@@ -97,8 +97,6 @@ applyFun fun args = do
       popStack
       pure $ last res
     _ -> error "Not a function"
-
--- Builtin function processment
 
 applyOp :: (MonadState Context m, MonadIO m) => SExpr -> SExpr -> (Integer -> Integer  -> Value) -> m Value
 applyOp a b fn = do 
