@@ -147,7 +147,7 @@ builtin "function" (SIdentifier name : SSExpr params : body) = do
   addFunction name (filterIdentifier params) body
   pure VNil
 
-builtin "assert" [SIdentifier name, a, b] = do
+builtin "assert" [SString name, a, b] = do
   resA <- eval a 
   resB <- eval b
   if resA == resB
