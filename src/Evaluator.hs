@@ -22,11 +22,17 @@ data Context = Context
   , stackContext :: [Map Text Value]
   }
 
+data List a
+  = Nil
+  | Cons a (List a)
+  deriving (Eq, Show)
+
 data Value
   = VInteger Integer
   | VString String
   | VBool Bool
   | VFunction Function
+  | VList (List Value)
   | VNil
   deriving (Eq)
 
@@ -39,6 +45,7 @@ instance Show Value where
     VString s   -> s
     VBool b     -> show b
     VFunction _ -> "[Function]"
+    VList s     -> show s
     VNil        -> "nil"
 
 findVariable :: (MonadState Context m) => Text -> m Value
@@ -146,6 +153,43 @@ builtin "if" [cond, if', else'] = do
 builtin "function" (SIdentifier name : SSExpr params : body) = do
   addFunction name (filterIdentifier params) body
   pure VNil
+
+builtin "list" rest =
+  case rest of
+    [] -> pure $ VList Nil
+    _ -> do
+      values <- traverse eval rest
+      pure $ VList (f values)
+        where
+          f []       = Nil
+          f (x : xs) = Cons x (f xs)
+
+builtin "cons" [x, y] = do
+  a <- eval x
+  list <- eval y 
+  case list of
+    VList ys -> pure $ VList (Cons a ys) 
+    _ -> error "Expected a list"
+
+builtin "nil?" xs = do
+  values <- traverse eval xs
+  case values of
+    [VList Nil] -> pure $ VBool True
+    _ -> pure $ VBool False
+
+builtin "head" xs = do
+  values <- traverse eval xs
+  case values of
+    [VList Nil] -> error "Empty list"
+    [VList (Cons a _)] -> pure a
+    _ -> error "Expected a list"
+
+builtin "tail" xs = do
+  values <- traverse eval xs
+  case values of
+    [VList Nil] -> error "Empty list"
+    [VList (Cons _ xs)] -> pure $ VList xs
+    _ -> error "Expected a list"
 
 builtin "assert" [SString name, a, b] = do
   resA <- eval a 
