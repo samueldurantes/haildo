@@ -41,6 +41,13 @@ mul ctx (SIdentifier "*" : rest) = do
     else error "illegal function call"
 mul _ _ = error "illegal function call"
 
+eql :: Context -> [SExpr] -> IO Value
+eql ctx [SIdentifier "=", e1, e2] = do
+  (VInteger i1) <- eval ctx e1
+  (VInteger i2) <- eval ctx e2
+  pure $ VBool $ i1 == i2
+eql _ _ = error "illegal function call"
+
 def :: Context -> [SExpr] -> IO Value
 def ctx [SIdentifier "define", SIdentifier n, body] = do
   b <- eval ctx body
@@ -60,12 +67,22 @@ lambda ctx [SIdentifier "lambda", SSExpr [SIdentifier p], body] = do
   pure $ VClosure ctx p body
 lambda _ _ = error "illegal function call"
 
+if_ :: Context -> [SExpr] -> IO Value
+if_ ctx [SIdentifier "if", t, e1, e2] = do
+  (VBool b) <- eval ctx t
+  if b
+    then eval ctx e1
+    else eval ctx e2
+if_ _ _ = error "illegal function call"
+
 primitives :: [(Text, Value)]
 primitives =
   [ ("+", VPrim add)
   , ("-", VPrim sub)
   , ("*", VPrim mul)
+  , ("=", VPrim eql)
   , ("define", VPrim def)
   , ("print", VPrim print)
   , ("lambda", VPrim lambda)
+  , ("if", VPrim if_)
   ]
