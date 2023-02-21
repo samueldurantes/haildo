@@ -25,6 +25,8 @@ source-repository head
 executable haildo-exe
   main-is: Main.hs
   other-modules:
+      Core.Interpreter
+      Core.Primitives
       Syntax.Parser
       Syntax.Tree
       Paths_haildo
