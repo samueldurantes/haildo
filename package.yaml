@@ -26,6 +26,9 @@ dependencies:
 default-extensions:
 - OverloadedStrings
 - LambdaCase
+- OverloadedRecordDot
+- DuplicateRecordFields
+- NamedFieldPuns
 
 ghc-options:
 - -Wall

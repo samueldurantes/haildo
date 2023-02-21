@@ -7,7 +7,7 @@ import Prelude hiding (print)
 import Core.Interpreter (eval)
 import Data.Text (Text)
 import Data.IORef (modifyIORef)
-import Syntax.Tree (SExpr(..), Value(..), Context)
+import Syntax.Tree (SExpr(..), Value(..), Context(..))
 
 isInt :: Value -> Bool
 isInt (VInteger _) = True
@@ -51,7 +51,7 @@ eql _ _ = error "illegal function call"
 def :: Context -> [SExpr] -> IO Value
 def ctx [SIdentifier "define", SIdentifier n, body] = do
   b <- eval ctx body
-  modifyIORef ctx (\ctx' -> (n, b) : ctx')
+  modifyIORef ctx.globals (\ctx' -> (n, b) : ctx')
   pure VNil
 def _ _ = error "illegal function call"
 

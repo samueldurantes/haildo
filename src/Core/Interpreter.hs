@@ -4,15 +4,17 @@ module Core.Interpreter
 
 import Control.Monad (foldM)
 import Data.Text (unpack, Text)
-import Data.IORef (modifyIORef, readIORef)
-import Syntax.Tree (SExpr (..), Context, Value (..))
+import Syntax.Tree (SExpr (..), Context(..), Value (..))
+import Data.IORef (readIORef)
 
 findVariable :: Text -> Context -> IO Value
-findVariable name ctx = do
-  ctx' <- readIORef ctx
-  case lookup name ctx' of
-    Nothing ->
-      error $ "Variable \"" ++ unpack name ++ "\" not found!"
+findVariable name ctx =
+  case lookup name ctx.locals of
+    Nothing -> do
+      ctx' <- readIORef ctx.globals
+      case lookup name ctx' of
+        Nothing -> error $ "Variable \"" ++ unpack name ++ "\" not found!"
+        Just va -> pure va
     Just va -> pure va
 
 eval :: Context -> SExpr -> IO Value
@@ -36,6 +38,6 @@ apply ctx fun arg = do
   a <- eval ctx arg
   case fun of
     VClosure ctx' n e -> do
-      modifyIORef ctx' (\x -> (n, a) : x)
-      eval ctx' e
+      let ct = Context { globals = ctx'.globals, locals = (n, a) : ctx'.locals }
+      eval ct e
     _ -> error "illegal function call"

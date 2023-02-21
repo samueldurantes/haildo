@@ -1,6 +1,6 @@
 module Syntax.Tree
   ( SExpr (..)
-  , Context
+  , Context(..)
   , Value (..)
   ) where
 
@@ -15,7 +15,10 @@ data SExpr
   | SSExpr [SExpr]
   deriving (Show)
 
-type Context = IORef [(Text, Value)]
+data Context = Context
+  { globals :: IORef [(Text, Value)]
+  , locals :: [(Text, Value)]
+  }
 
 data Value
   = VClosure Context Text SExpr
