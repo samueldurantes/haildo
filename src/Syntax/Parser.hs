@@ -1,15 +1,12 @@
-module Syntax.Parser
-  ( parseSExpr
-  ) where
+module Syntax.Parser where
 
 import Data.Void (Void)
-import Data.Text (Text, pack, singleton)
+import Data.Text (Text, pack)
 import Text.Megaparsec
 import Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
 
 import Syntax.Tree
-import Data.Char (isSymbol)
 
 type Parser = Parsec Void Text
 
