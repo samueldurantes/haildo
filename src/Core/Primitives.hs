@@ -29,7 +29,7 @@ sub :: Context -> [SExpr] -> IO Value
 sub ctx (SIdentifier "-" : rest) = do
   xs <- traverse (eval ctx) rest
   if all isInt xs
-    then pure $ VInteger $ foldl (-) 0 $ map toInt xs
+    then pure $ VInteger $ foldl1 (-) $ map toInt xs
     else error "illegal function call"
 sub _ _ = error "illegal function call"
 
