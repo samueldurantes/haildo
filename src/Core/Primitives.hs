@@ -7,7 +7,8 @@ import Prelude hiding (print)
 import Core.Interpreter (eval)
 import Data.Text (Text)
 import Data.IORef (modifyIORef)
-import Syntax.Tree (SExpr(..), Value(..), Context(..))
+import Syntax.Tree (SExpr(..), Value(..), Context(..), Ret(..))
+import System.Posix (dlopen, RTLDFlags (RTLD_LAZY), dlsym)
 
 isInt :: Value -> Bool
 isInt (VInteger _) = True
@@ -75,6 +76,29 @@ if_ ctx [SIdentifier "if", t, e1, e2] = do
     else eval ctx e2
 if_ _ _ = error "illegal function call"
 
+primDlopen :: Context -> [SExpr] -> IO Value
+primDlopen ctx [SIdentifier "dlopen", t] = do
+  (VString str) <- eval ctx t
+  result <- dlopen str [RTLD_LAZY]
+  pure (VPtr result)
+primDlopen _ _ = error "illegal function call"
+
+toRetType :: String -> Ret
+toRetType = \case
+  "string" -> TString
+  "int"    -> TInteger
+  "bool"   -> TBool
+  _        -> error "invalid type"
+
+primDlsym :: Context -> [SExpr] -> IO Value
+primDlsym ctx [SIdentifier "dlsym", t, e0, e1] = do
+  (VPtr dl) <- eval ctx t
+  (VString name0) <- eval ctx e0
+  (VString name1) <- eval ctx e1
+  funPtr <- dlsym dl name1
+  pure (VFunPtr funPtr (toRetType name0))
+primDlsym _ _ = error "illegal function call"
+
 primitives :: [(Text, Value)]
 primitives =
   [ ("+", VPrim add)
@@ -85,4 +109,6 @@ primitives =
   , ("print", VPrim print)
   , ("lambda", VPrim lambda)
   , ("if", VPrim if_)
+  , ("dlopen", VPrim primDlopen)
+  , ("dlsym", VPrim primDlsym)
   ]

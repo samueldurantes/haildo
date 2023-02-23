@@ -2,10 +2,15 @@ module Syntax.Tree
   ( SExpr (..)
   , Context(..)
   , Value (..)
+  , Ret(..)
   ) where
 
 import Data.Text (Text)
 import Data.IORef (IORef)
+import System.Posix (DL)
+import Foreign (FunPtr)
+
+data Ret = TInteger | TString | TBool
 
 data SExpr
   = SInteger Integer
@@ -26,12 +31,16 @@ data Value
   | VBool Bool
   | VString String
   | VPrim (Context -> [SExpr] -> IO Value)
+  | VPtr DL
+  | VFunPtr (FunPtr ()) Ret
   | VNil
 
 instance Show Value where
-  show VClosure {}  = "(function)"
-  show (VInteger i) = show i
-  show (VBool b)    = show b
-  show (VString s)  = s
-  show (VPrim _)    = "(primitive)"
-  show VNil         = "NIL"
+  show VClosure {}   = "(function)"
+  show (VInteger i)  = show i
+  show (VBool b)     = show b
+  show (VString s)   = s
+  show (VPrim _)     = "(primitive)"
+  show (VPtr _)      = "(ptr)"
+  show (VFunPtr _ _) = "(fun_ptr)"
+  show VNil          = "NIL"

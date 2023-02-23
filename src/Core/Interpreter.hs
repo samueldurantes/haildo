@@ -4,8 +4,11 @@ module Core.Interpreter
 
 import Control.Monad (foldM)
 import Data.Text (unpack, Text)
-import Syntax.Tree (SExpr (..), Context(..), Value (..))
+import Syntax.Tree (SExpr (..), Context(..), Value (..), Ret(..))
 import Data.IORef (readIORef)
+import Core.Marshalling (marshal)
+import Foreign.LibFFI (callFFI)
+import Foreign.LibFFI.Types ( retInt64 )
 
 findVariable :: Text -> Context -> IO Value
 findVariable name ctx =
@@ -31,6 +34,14 @@ eval ctx = \case
         case f of
           VClosure {} -> foldM (apply ctx) f ys
           VPrim primitiveFn -> primitiveFn ctx zs
+          VFunPtr fPTr ret -> do
+            args <- traverse (eval ctx) ys
+            let b = map marshal args
+            case ret of
+              TInteger -> do
+                i <- callFFI fPTr retInt64 b
+                pure $ VInteger (fromIntegral i)
+              _ -> error "not implemented yet"
           _ -> error "illegal function call"
 
 apply :: Context -> Value -> SExpr -> IO Value
