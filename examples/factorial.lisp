@@ -3,4 +3,4 @@
   1
   (* n (factorial (- n 1))))))
 
-(print (factorial 7)) ;=> 5040
+(print (factorial 7)) ;; 5040

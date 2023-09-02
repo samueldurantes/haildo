@@ -1,5 +1,5 @@
 ; For this to work, it's necessary to build `bindings/double.c`
-; Use following command to do this: `gcc -Wall -shared lib.c -o lib.o -ldl`
+; Use following command to do this: `gcc -Wall -shared double.c -o lib.o -ldl`
 
 (define lib-double (dlopen "./lib.o"))
 
