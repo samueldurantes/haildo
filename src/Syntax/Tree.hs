@@ -5,6 +5,7 @@ module Syntax.Tree
   , Ret(..)
   ) where
 
+import Data.Char (toLower)
 import Data.Text (Text)
 import Data.IORef (IORef)
 import System.Posix (DL)
@@ -38,7 +39,7 @@ data Value
 instance Show Value where
   show VClosure {}   = "(function)"
   show (VInteger i)  = show i
-  show (VBool b)     = show b
+  show (VBool b)     = map toLower $ show b
   show (VString s)   = s
   show (VPrim _)     = "(primitive)"
   show (VPtr _)      = "(ptr)"

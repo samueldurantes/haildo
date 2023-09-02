@@ -49,6 +49,38 @@ eql ctx [SIdentifier "=", e1, e2] = do
   pure $ VBool $ i1 == i2
 eql _ _ = error "illegal function call"
 
+-- (<)
+ltn :: Context -> [SExpr] -> IO Value
+ltn ctx [SIdentifier "<", e1, e2] = do
+  (VInteger i1) <- eval ctx e1
+  (VInteger i2) <- eval ctx e2
+  pure $ VBool $ i1 < i2
+ltn _ _ = error "illegal function call"
+
+-- (<=)
+lte :: Context -> [SExpr] -> IO Value
+lte ctx [SIdentifier "<=", e1, e2] = do
+  (VInteger i1) <- eval ctx e1
+  (VInteger i2) <- eval ctx e2
+  pure $ VBool $ i1 <= i2
+lte _ _ = error "illegal function call"
+
+-- (>)
+gtn :: Context -> [SExpr] -> IO Value
+gtn ctx [SIdentifier ">", e1, e2] = do
+  (VInteger i1) <- eval ctx e1
+  (VInteger i2) <- eval ctx e2
+  pure $ VBool $ i1 > i2
+gtn _ _ = error "illegal function call"
+
+-- (>=)
+gte :: Context -> [SExpr] -> IO Value
+gte ctx [SIdentifier ">", e1, e2] = do
+  (VInteger i1) <- eval ctx e1
+  (VInteger i2) <- eval ctx e2
+  pure $ VBool $ i1 >= i2
+gte _ _ = error "illegal function call"
+
 def :: Context -> [SExpr] -> IO Value
 def ctx [SIdentifier "define", SIdentifier n, body] = do
   b <- eval ctx body
@@ -75,6 +107,12 @@ if_ ctx [SIdentifier "if", t, e1, e2] = do
     then eval ctx e1
     else eval ctx e2
 if_ _ _ = error "illegal function call"
+
+not' :: Context -> [SExpr] -> IO Value
+not' ctx [SIdentifier "not", e] = do
+  (VBool b) <- eval ctx e
+  pure $ VBool (not b)
+not' _ _ = error "illegal function call"
 
 primDlopen :: Context -> [SExpr] -> IO Value
 primDlopen ctx [SIdentifier "dlopen", t] = do
@@ -105,10 +143,15 @@ primitives =
   , ("-", VPrim sub)
   , ("*", VPrim mul)
   , ("=", VPrim eql)
+  , ("<", VPrim ltn)
+  , ("<=", VPrim lte)
+  , (">", VPrim gtn)
+  , (">=", VPrim gte)
   , ("define", VPrim def)
   , ("print", VPrim print)
   , ("lambda", VPrim lambda)
   , ("if", VPrim if_)
+  , ("not", VPrim not')
   , ("dlopen", VPrim primDlopen)
   , ("dlsym", VPrim primDlsym)
   ]
